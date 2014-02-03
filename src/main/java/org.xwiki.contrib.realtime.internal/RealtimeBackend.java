@@ -85,7 +85,6 @@ public class RealtimeBackend implements WebSocketHandler
                 //System.out.println("Incoming message " + msg.sender + "  " + msg.content);
 
                 if (!userName.equals(msg.sender.substring(0,msg.sender.lastIndexOf('-')))) {
-                    System.out.println("message from unauthed user");
                     return;
                 }
 
@@ -94,14 +93,13 @@ public class RealtimeBackend implements WebSocketHandler
                 if (user == null) {
                     // user not registered in chan
                     if (!("[0]").equals(msg.content)) {
-                        System.out.println("Message from unregistered user");
                         return;
                     }
 
                     Channel chan = channelByName.get(msg.channel);
                     // he wants to register
                     if (chan == null) {
-                        chan = new Channel();
+                        chan = new Channel(msg.channel);
                         channelByName.put(msg.channel, chan);
                     }
 
@@ -151,6 +149,7 @@ public class RealtimeBackend implements WebSocketHandler
     {
         final Map<String, User> users = new HashMap<String, User>();
         final List<String> messages = new LinkedList<String>();
-        String name;
+        final String name;
+        Channel(String name) { this.name = name; }
     }
 }
