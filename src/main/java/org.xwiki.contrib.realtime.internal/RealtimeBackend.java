@@ -132,6 +132,17 @@ public class RealtimeBackend implements WebSocketHandler
                     });
                 }
 
+                if (msg.content.indexOf("[4,") == 0) {
+                    // PING
+                    // replace [4, with [5, and send the message back untouched.
+                    String content = "[5," + msg.content.substring(3);
+                    String msgStr = msg.sender.length() + ":" + msg.sender
+                        + msg.channel.length() + ":" + msg.channel
+                        + content.length() + ":" + content;
+                    user.sock.send(msgStr);
+                    return;
+                }
+
                 String msgStr = msg.sender.length() + ":" + msg.sender
                     + msg.channel.length() + ":" + msg.channel
                     + msg.content.length() + ":" + msg.content;
