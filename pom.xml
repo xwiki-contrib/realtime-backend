@@ -27,7 +27,7 @@
   <parent>
    <groupId>org.xwiki.commons</groupId>
    <artifactId>xwiki-commons-pom</artifactId>
-   <version>5.2</version>
+   <version>7.1.2</version> <!-- see xwiki.version -->
   </parent>
   <groupId>org.xwiki.contrib</groupId>
   <version>1.2-SNAPSHOT</version>
@@ -37,7 +37,7 @@
 You probably don't want to install this directly</description>
 
   <properties>
-    <xwiki.version>5.2</xwiki.version>
+    <xwiki.version>7.1.2</xwiki.version> <!-- see parent version -->
   </properties>
 
   <dependencies>
@@ -45,7 +45,7 @@ You probably don't want to install this directly</description>
     <dependency>
       <groupId>org.xwiki.contrib</groupId>
       <artifactId>xwiki-contrib-websocket</artifactId>
-      <version>1.5-SNAPSHOT</version>
+      <version>1.7-SNAPSHOT</version>
     </dependency>
 
     <dependency>
