@@ -36,6 +36,20 @@
   <description>Backend support for Realtime Applications
 You probably don't want to install this directly</description>
 
+  <scm>
+    <connection>scm:git:git://github.com/xwiki-contrib/realtime-backend.git</connection>
+    <developerConnection>scm:git:git@github.com:xwiki-contrib/realtime-backend.git</developerConnection>
+    <url>https://github.com/xwiki-contrib/realtime-backend</url>
+    <tag>HEAD</tag>
+  </scm>
+  <distributionManagement>
+    <repository>
+      <id>xwiki-staging</id>
+      <name>XWiki Staging Repository</name>
+      <url>http://nexus.xwiki.org/nexus/service/local/staging/deploy/maven2/</url>
+    </repository>
+  </distributionManagement>
+
   <properties>
     <xwiki.version>7.1.2</xwiki.version> <!-- see parent version -->
   </properties>
