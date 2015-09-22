@@ -45,7 +45,7 @@ You probably don't want to install this directly</description>
     <dependency>
       <groupId>org.xwiki.contrib</groupId>
       <artifactId>xwiki-contrib-websocket</artifactId>
-      <version>1.7-SNAPSHOT</version>
+      <version>1.7</version>
     </dependency>
 
     <dependency>
