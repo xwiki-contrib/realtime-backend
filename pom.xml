@@ -49,6 +49,12 @@ You probably don't want to install this directly</description>
       <url>http://nexus.xwiki.org/nexus/service/local/staging/deploy/maven2/</url>
     </repository>
   </distributionManagement>
+  <developers>
+    <developer>
+      <id>cjdelisle</id>
+      <name>Caleb James DeLisle</name>
+    </developer>
+  </developers>
 
   <properties>
     <xwiki.version>7.1.2</xwiki.version> <!-- see parent version -->

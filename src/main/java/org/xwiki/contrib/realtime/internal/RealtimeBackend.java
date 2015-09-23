@@ -120,7 +120,7 @@ public class RealtimeBackend implements WebSocketHandler
                 // on the websocket to disconnect anyone who hasn't written to the WS in
                 // more than 30 seconds.
                 for (WebSocket sock : userBySocket.keySet()) {
-                    if (now - userBySocket.get(sock).timeOfLastMessage < -TIMEOUT_MILLISECONDS) {
+                    if (now - userBySocket.get(sock).timeOfLastMessage > TIMEOUT_MILLISECONDS) {
                         wsDisconnect(sock);
                     }
                 }
