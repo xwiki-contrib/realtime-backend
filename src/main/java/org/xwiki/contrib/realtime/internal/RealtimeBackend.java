@@ -74,6 +74,7 @@ public class RealtimeBackend implements WebSocketHandler
     private void wsDisconnect(WebSocket ws)
     {
         User user = userBySocket.get(ws);
+        if (user == null) { return; }
         user.chan.users.remove(user.name);
         userBySocket.remove(ws);
         String msgStr = user.name.length() + ":" + user.name
