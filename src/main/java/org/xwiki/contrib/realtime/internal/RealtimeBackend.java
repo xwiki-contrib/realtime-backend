@@ -134,7 +134,22 @@ public class RealtimeBackend implements WebSocketHandler
                     }
 
                     Channel chan = channelByName.get(msg.channel);
-                    // he wants to register
+
+                    // this is a double-triple-quadrupal check because of RTBACKEND-13
+                    // just in case the WebSocket disappears from userBySocket but still
+                    // the user is in the chan, this will prevent ghost-channels.
+                    if (chan != null) {
+                        boolean saveChan = false;
+                        for (User u : chan.users.values()) {
+                            if (now - u.timeOfLastMessage <= TIMEOUT_MILLISECONDS) {
+                                saveChan = true;
+                            }
+                        }
+                        if (!saveChan) {
+                            chan = null;
+                        }
+                    }
+
                     if (chan == null) {
                         chan = new Channel(msg.channel);
                         channelByName.put(msg.channel, chan);
