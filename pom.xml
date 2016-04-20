@@ -30,7 +30,7 @@
    <version>7.1.2</version> <!-- see xwiki.version -->
   </parent>
   <groupId>org.xwiki.contrib</groupId>
-  <version>1.6</version>
+  <version>1.7-SNAPSHOT</version>
   <artifactId>xwiki-contrib-rtbackend</artifactId>
   <name>Realtime Backend</name>
   <description>Backend support for Realtime Applications
@@ -40,7 +40,7 @@ You probably don't want to install this directly</description>
     <connection>scm:git:git://github.com/xwiki-contrib/realtime-backend.git</connection>
     <developerConnection>scm:git:git@github.com:xwiki-contrib/realtime-backend.git</developerConnection>
     <url>https://github.com/xwiki-contrib/realtime-backend</url>
-    <tag>xwiki-contrib-rtbackend-1.6</tag>
+    <tag>HEAD</tag>
   </scm>
   <distributionManagement>
     <repository>
