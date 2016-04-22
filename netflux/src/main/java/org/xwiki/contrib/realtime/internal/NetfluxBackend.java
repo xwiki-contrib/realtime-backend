@@ -314,10 +314,12 @@ public class NetfluxBackend implements WebSocketHandler
     {
         synchronized (bigLock) {
             User user = userBySocket.get(sock);
+            System.out.println("New user");
 
             // Send the IDENT message
             String userName = getRandomHexString(32);
             if (user == null) { // Register the user
+                System.out.println("User is null : create");
                 user = new User(sock, userName);
                 users.put(userName, user);
                 userBySocket.put(sock, user);
@@ -331,7 +333,15 @@ public class NetfluxBackend implements WebSocketHandler
                 });
             }
             ArrayList<Object> identMsg = buildDefault("", "IDENT", user.name, null);
-            sendMessage(user, display(identMsg));
+            String identMsgStr = display(identMsg);
+            //sendMessage(user, display(identMsg));
+            try {
+                //System.out.println("Sending to " + user.name + " : " + identMsgStr);
+                user.sock.send(identMsgStr);
+            } catch (Exception e) {
+                System.out.println("Sending failed");
+                //wsDisconnect(dest.sock); TODO
+            }
 
             sock.onMessage(new WebSocket.Callback() {
                 public void call(WebSocket ws) {
