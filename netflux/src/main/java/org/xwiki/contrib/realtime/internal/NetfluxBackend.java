@@ -370,11 +370,11 @@ public class NetfluxBackend implements WebSocketHandler
                         onMessage(ws);
                         sj = getSendJob();
                     }
-                    while (sj) {
-                        for (String msg : sj.toSend) {
+                    while (sj != null) {
+                        for (String msg : sj.messages) {
                             try {
                                 //System.out.println("Sending to " + u.name + " : " + m);
-                                sj.user.sock.send(m);
+                                sj.user.sock.send(msg);
                             } catch (Exception e) {
                                 System.out.println("Sending failed");
                                 //wsDisconnect(dest.sock); TODO
