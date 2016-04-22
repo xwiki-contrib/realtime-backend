@@ -40,9 +40,8 @@ public class NetfluxBackend implements WebSocketHandler
     {
         final WebSocket sock;
         final String name;
-        final Queue<String> toBeSent = new ConcurrentLinkedQueue<>();
+        final Queue<String> toBeSent = new LinkedList<>();
         final Set<Channel> chans = new HashSet<Channel>();
-        final Object smallLock = new Object();
         long timeOfLastMessage;
 
         User(WebSocket ws, String name)
@@ -309,6 +308,27 @@ public class NetfluxBackend implements WebSocketHandler
             }
         }
     }
+    
+    private static class SendJob {
+        User user;
+        List<String> messages;
+    }
+    
+    private SendJob getSendJob()
+    {
+        synchronized (bigLock) {
+            for (User u : users.values()) {
+                if (!u.toBeSent.isEmpty()) {
+                    SendJob out = new SendJob();
+                    out.messages = new ArrayList<String>(u.toBeSent);
+                    out.user = u;
+                    u.toBeSent.clear();
+                    return out;
+                }
+            }
+            return null;
+        }
+    }
 
     public void onWebSocketConnect(WebSocket sock)
     {
@@ -345,27 +365,23 @@ public class NetfluxBackend implements WebSocketHandler
 
             sock.onMessage(new WebSocket.Callback() {
                 public void call(WebSocket ws) {
-                    List<User> ul;
+                    SendJob sj;
                     synchronized (bigLock) {
                         onMessage(ws);
-                        ul = new ArrayList<>(users.values());
+                        sj = getSendJob();
                     }
-                    for (User u : ul) {
-                        synchronized (u.smallLock) {
-                            for (; ; ) {
-                                String m = u.toBeSent.poll();
-                                if (m == null) {
-                                    break;
-                                }
-                                try {
-                                    //System.out.println("Sending to " + u.name + " : " + m);
-                                    u.sock.send(m);
-                                } catch (Exception e) {
-                                    System.out.println("Sending failed");
-                                    //wsDisconnect(dest.sock); TODO
-                                }
+                    while (sj) {
+                        for (String msg : sj.toSend) {
+                            try {
+                                //System.out.println("Sending to " + u.name + " : " + m);
+                                sj.user.sock.send(m);
+                            } catch (Exception e) {
+                                System.out.println("Sending failed");
+                                //wsDisconnect(dest.sock); TODO
+                                return;
                             }
                         }
+                        sj = getSendJob();
                     }
                 }
             });
