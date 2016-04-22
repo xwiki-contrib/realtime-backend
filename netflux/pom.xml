@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+ *
+ * See the NOTICE file distributed with this work for additional
+ * information regarding copyright ownership.
+ *
+ * This is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as
+ * published by the Free Software Foundation; either version 2.1 of
+ * the License, or (at your option) any later version.
+ *
+ * This software is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this software; if not, write to the Free
+ * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
+ *
+-->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+   <groupId>org.xwiki.commons</groupId>
+   <artifactId>xwiki-commons-pom</artifactId>
+   <version>7.1.2</version> <!-- see xwiki.version -->
+  </parent>
+  <groupId>org.xwiki.contrib</groupId>
+  <version>1.0-SNAPSHOT</version>
+  <artifactId>xwiki-contrib-rtnetfluxbackend</artifactId>
+  <name>Realtime Netflux Backend</name>
+  <description>Backend support for Realtime Applications using the Netflux API
+You probably don't want to install this directly</description>
+
+  <scm>
+    <connection>scm:git:git://github.com/xwiki-contrib/realtime-backend.git</connection>
+    <developerConnection>scm:git:git@github.com:xwiki-contrib/realtime-backend.git</developerConnection>
+    <url>https://github.com/xwiki-contrib/realtime-backend/netflux</url>
+    <tag>HEAD</tag>
+  </scm>
+  <distributionManagement>
+    <repository>
+      <id>xwiki-staging</id>
+      <name>XWiki Staging Repository</name>
+      <url>http://nexus.xwiki.org/nexus/service/local/staging/deploy/maven2/</url>
+    </repository>
+  </distributionManagement>
+  <developers>
+    <developer>
+      <id>yflory</id>
+      <name>Yann Flory</name>
+    </developer>
+    <developer>
+      <id>cjdelisle</id>
+      <name>Caleb James DeLisle</name>
+    </developer>
+  </developers>
+
+  <properties>
+    <xwiki.version>7.1.2</xwiki.version> <!-- see parent version -->
+  </properties>
+
+  <dependencies>
+
+    <dependency>
+      <groupId>org.xwiki.contrib</groupId>
+      <artifactId>xwiki-contrib-websocket</artifactId>
+      <version>1.7</version>
+    </dependency>
+
+    <dependency>
+      <groupId>javax.inject</groupId>
+      <artifactId>javax.inject</artifactId>
+      <version>1</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.xwiki.commons</groupId>
+      <artifactId>xwiki-commons-component-api</artifactId>
+      <version>${xwiki.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.xwiki.platform</groupId>
+      <artifactId>xwiki-platform-model</artifactId>
+      <version>${xwiki.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>2.3.3</version>
+    </dependency>
+
+  </dependencies>
+
+</project>
