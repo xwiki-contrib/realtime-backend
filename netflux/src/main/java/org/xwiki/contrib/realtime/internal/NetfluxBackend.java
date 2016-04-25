@@ -39,8 +39,8 @@ public class NetfluxBackend implements WebSocketHandler
             if(userBySocket.get(u.sock) == null && userByName.get(u.name) == null) {
                 return false;
             }
-            userBySocket.remove(u.sock);
-            userByName.remove(u.name);
+            if(userBySocket.remove(u.sock) == null) { throw new RuntimeException("userBySocket does not contain user"); }
+            if(userByName.remove(u.name) == null) { throw new RuntimeException("userByName does not contain user"); }
             return true;
         }
         static void addUser(User u) {
