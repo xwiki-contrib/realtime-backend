@@ -1,5 +1,6 @@
 package org.xwiki.contrib.realtime.internal;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.websocket.WebSocket;
 import org.xwiki.contrib.websocket.WebSocketHandler;
@@ -19,6 +20,8 @@ public class NetfluxBackend implements WebSocketHandler
 {
     private static final long TIMEOUT_MILLISECONDS = 30000;
     private static final boolean USE_HISTORY_KEEPER = true;
+
+    private final ObjectMapper mapper = new ObjectMapper();
 
     private final Map<String, Channel> channelByName = new HashMap<String, Channel>();
 
@@ -91,21 +94,15 @@ public class NetfluxBackend implements WebSocketHandler
             user.connected = false;
 
             for (Channel chan : user.chans) {
-                try {
-                    chan.users.remove(user.name);
-                    List<Object> leaveMsg = buildDefault(user.name, "LEAVE", chan.name, "Quit: [ wsDisconnect() ]");
-                    String msgStr = display(leaveMsg);
-                    sendChannelMessage("LEAVE", user, chan, msgStr);
-                    chan.messages.add(msgStr);
-                    // Remove the channel when there is no user anymore (the history keeper doesn't count)
-                    Integer minSize = (USE_HISTORY_KEEPER) ? 1 : 0;
-                    if (chan.users.keySet().size() == minSize) {
-                        channelByName.remove(chan.name);
-                    }
-                } catch (Exception e) {
-                    System.out.println("Unable to leave the channel");
-                    e.printStackTrace();
-                    // TODO something, anything
+                chan.users.remove(user.name);
+                List<Object> leaveMsg = buildDefault(user.name, "LEAVE", chan.name, "Quit: [ wsDisconnect() ]");
+                String msgStr = display(leaveMsg);
+                sendChannelMessage("LEAVE", user, chan, msgStr);
+                chan.messages.add(msgStr);
+                // Remove the channel when there is no user anymore (the history keeper doesn't count)
+                Integer minSize = (USE_HISTORY_KEEPER) ? 1 : 0;
+                if (chan.users.keySet().size() == minSize) {
+                    channelByName.remove(chan.name);
                 }
             }
         }
@@ -122,24 +119,11 @@ public class NetfluxBackend implements WebSocketHandler
     }
 
     private String display(List<Object> list) {
-        String result = "[";
-        Boolean first = true;
-        for (Object elmt : list) {
-            if (!first) {
-                result += ",";
-            } else {
-                first = false;
-            }
-            if (elmt instanceof Integer) {
-                result += elmt.toString();
-            } else {
-                String newstring = elmt.toString().replaceAll("\\\\","\\\\\\\\");
-                newstring = newstring.replaceAll("\"","\\\\\\\"");
-                result += "\"" + newstring + "\"";
-            }
+        try {
+            return mapper.writeValueAsString(list);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to serialize message", e);
         }
-        result += "]";
-        return result;
     }
 
     private void sendMessage(User toUser, String msgStr) {
@@ -204,10 +188,10 @@ public class NetfluxBackend implements WebSocketHandler
     private void onMessage(WebSocket ws) {
         ArrayList<Object> msg;
         try {
-            msg = new ObjectMapper().readValue(ws.recv(), ArrayList.class);
+            msg = mapper.readValue(ws.recv(), ArrayList.class);
         } catch (IOException e) {
             msg = null;
-            e.printStackTrace();
+            throw new RuntimeException("Failed to parse message", e);
         }
         if (msg == null) { return; }
 
@@ -383,7 +367,7 @@ public class NetfluxBackend implements WebSocketHandler
                 user.sock.send(identMsgStr);
             } catch (Exception e) {
                 //System.out.println("Sending failed");
-                //wsDisconnect(dest.sock); TODO
+                wsDisconnect(user.sock);
                 return;
             }
 
@@ -401,8 +385,8 @@ public class NetfluxBackend implements WebSocketHandler
                                 //System.out.println("Sending to " + sj.user.name + " : " + msg);
                                 sj.user.sock.send(msg);
                             } catch (Exception e) {
-                                System.out.println("Sending failed " + msg);
-                                //wsDisconnect(dest.sock); TODO
+                                //System.out.println("Sending failed " + msg);
+                                wsDisconnect(sj.user.sock);
                                 return;
                             }
                         }
