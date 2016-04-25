@@ -21,10 +21,33 @@ public class NetfluxBackend implements WebSocketHandler
     private static final boolean USE_HISTORY_KEEPER = true;
 
     private final Map<String, Channel> channelByName = new HashMap<String, Channel>();
-    private final Map<WebSocket, User> userBySocket = new HashMap<WebSocket, User>();
-    private final Map<String, User> users = new HashMap<>();
+
     private final String historyKeeper = getRandomHexString((16));
     private final Object bigLock = new Object();
+
+    private static class UserBox
+    {
+        private static Map<WebSocket, User> userBySocket = new HashMap<WebSocket, User>();
+        private static Map<String, User> userByName = new HashMap<>();
+        static User byName(String name) {
+            return userByName.get(name);
+        }
+        static User bySocket(WebSocket sock) {
+            return userBySocket.get(sock);
+        }
+        static boolean removeUser(User u) {
+            if(userBySocket.get(u.sock) == null && userByName.get(u.name) == null) {
+                return false;
+            }
+            userBySocket.remove(u.sock);
+            userByName.remove(u.name);
+            return true;
+        }
+        static void addUser(User u) {
+            userBySocket.put(u.sock, u);
+            userByName.put(u.name, u);
+        }
+    }
 
     private static class Channel
     {
@@ -42,34 +65,33 @@ public class NetfluxBackend implements WebSocketHandler
         final String name;
         final Queue<String> toBeSent = new LinkedList<>();
         final Set<Channel> chans = new HashSet<Channel>();
+        boolean connected;
         long timeOfLastMessage;
 
         User(WebSocket ws, String name)
         {
             this.sock = ws;
             this.name = name;
+            this.connected = true;
         }
     }
 
     private void wsDisconnect(WebSocket ws)
     {
         synchronized (bigLock) {
-            for (String uname : new ArrayList<String>(users.keySet())) {
-                if (users.get(uname).sock == ws) {
-                    users.remove(uname);
-                }
-            }
 
-            User user = userBySocket.get(ws);
+            User user = UserBox.bySocket(ws);
+
             if (user == null) { return; }
-            //System.out.println("Disconnect "+user.name);
-            userBySocket.remove(ws);
+
+            // System.out.println("Disconnect "+user.name);
+            UserBox.removeUser(user);
+            user.connected = false;
 
             for (Channel chan : user.chans) {
                 try {
                     chan.users.remove(user.name);
-                    List<Object> leaveMsg =
-                            buildDefault(user.name, "LEAVE", chan.name, "Quit: [ wsDisconnect() ]");
+                    List<Object> leaveMsg = buildDefault(user.name, "LEAVE", chan.name, "Quit: [ wsDisconnect() ]");
                     String msgStr = display(leaveMsg);
                     sendChannelMessage("LEAVE", user, chan, msgStr);
                     chan.messages.add(msgStr);
@@ -185,10 +207,11 @@ public class NetfluxBackend implements WebSocketHandler
             msg = null;
             e.printStackTrace();
         }
-        if (msg == null) return;
-        //System.out.println("> " + msg);
+        if (msg == null) { return; }
 
-        User user = userBySocket.get(ws);
+        User user = UserBox.bySocket(ws);
+
+        if (user == null) { wsDisconnect(ws); return; }
 
         long now = System.currentTimeMillis();
         if (user != null) {
@@ -199,9 +222,9 @@ public class NetfluxBackend implements WebSocketHandler
         // in netty so I'm just going to run the check every time something comes in
         // on the websocket to disconnect anyone who hasn't written to the WS in
         // more than 30 seconds.
-        List<WebSocket> socks = new LinkedList<WebSocket>(userBySocket.keySet());
+        List<WebSocket> socks = new LinkedList<WebSocket>(UserBox.userBySocket.keySet());
         for (WebSocket sock : socks) {
-            if (now - userBySocket.get(sock).timeOfLastMessage > TIMEOUT_MILLISECONDS) {
+            if (now - UserBox.bySocket(sock).timeOfLastMessage > TIMEOUT_MILLISECONDS) {
                 wsDisconnect(sock);
             }
         }
@@ -264,6 +287,8 @@ public class NetfluxBackend implements WebSocketHandler
             sendMessage(user, display(ackMsg));
         }
         if(cmd.equals("MSG")) {
+            ArrayList<Object> ackMsg = buildAck(seq);
+            sendMessage(user, display(ackMsg));
             if(USE_HISTORY_KEEPER && obj.equals(historyKeeper)) {
                 ArrayList<String> msgHistory;
                 try {
@@ -288,22 +313,20 @@ public class NetfluxBackend implements WebSocketHandler
                 }
                 return;
             }
-            if (obj.length() != 0 && channelByName.get(obj) == null && users.get(obj) == null) {
+            if (obj.length() != 0 && channelByName.get(obj) == null && UserBox.byName(obj) == null) {
                 ArrayList<Object> errorMsg = buildError(seq, "ENOENT", obj);
                 sendMessage(user, display(errorMsg));
                 return;
             }
-            ArrayList<Object> ackMsg = buildAck(seq);
-            sendMessage(user, display(ackMsg));
             if (channelByName.get(obj) != null) {
                 ArrayList<Object> msgMsg = buildMessage(0, user.name, obj, msg.get(3));
                 Channel chan = channelByName.get(obj);
                 sendChannelMessage("MSG", user, chan, display(msgMsg));
                 return;
             }
-            if (users.get(obj) != null) {
+            if (UserBox.byName(obj) != null) {
                 ArrayList<Object> msgMsg = buildMessage(0, user.name, obj, msg.get(3));
-                sendMessage(users.get(obj), display(msgMsg));
+                sendMessage(UserBox.byName(obj), display(msgMsg));
                 return;
             }
         }
@@ -317,8 +340,8 @@ public class NetfluxBackend implements WebSocketHandler
     private SendJob getSendJob()
     {
         synchronized (bigLock) {
-            for (User u : users.values()) {
-                if (!u.toBeSent.isEmpty()) {
+            for (User u : UserBox.userByName.values()) {
+                if (u.connected && !u.toBeSent.isEmpty()) {
                     SendJob out = new SendJob();
                     out.messages = new ArrayList<String>(u.toBeSent);
                     out.user = u;
@@ -333,34 +356,33 @@ public class NetfluxBackend implements WebSocketHandler
     public void onWebSocketConnect(WebSocket sock)
     {
         synchronized (bigLock) {
-            User user = userBySocket.get(sock);
-            System.out.println("New user");
+            User user = UserBox.bySocket(sock);
 
             // Send the IDENT message
-            String userName = getRandomHexString(32);
             if (user == null) { // Register the user
-                System.out.println("User is null : create");
+                String userName = getRandomHexString(32);
                 user = new User(sock, userName);
-                users.put(userName, user);
-                userBySocket.put(sock, user);
-                // System.out.println("Registered " + userName);
+                UserBox.addUser(user);
+                user.timeOfLastMessage = System.currentTimeMillis();
+                //System.out.println("Registered " + userName);
                 sock.onDisconnect(new WebSocket.Callback() {
                     public void call(WebSocket ws) {
-                        synchronized(bigLock) {
-                            wsDisconnect(ws);
-                        }
+                    synchronized(bigLock) {
+                        wsDisconnect(ws);
+                    }
                     }
                 });
             }
+
             ArrayList<Object> identMsg = buildDefault("", "IDENT", user.name, null);
             String identMsgStr = display(identMsg);
-            //sendMessage(user, display(identMsg));
             try {
                 //System.out.println("Sending to " + user.name + " : " + identMsgStr);
                 user.sock.send(identMsgStr);
             } catch (Exception e) {
-                System.out.println("Sending failed");
+                //System.out.println("Sending failed");
                 //wsDisconnect(dest.sock); TODO
+                return;
             }
 
             sock.onMessage(new WebSocket.Callback() {
@@ -372,11 +394,12 @@ public class NetfluxBackend implements WebSocketHandler
                     }
                     while (sj != null) {
                         for (String msg : sj.messages) {
+                            if(!sj.user.connected) { break; }
                             try {
-                                //System.out.println("Sending to " + u.name + " : " + m);
+                                //System.out.println("Sending to " + sj.user.name + " : " + msg);
                                 sj.user.sock.send(msg);
                             } catch (Exception e) {
-                                System.out.println("Sending failed");
+                                System.out.println("Sending failed " + msg);
                                 //wsDisconnect(dest.sock); TODO
                                 return;
                             }
