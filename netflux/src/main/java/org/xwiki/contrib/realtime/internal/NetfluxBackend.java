@@ -30,16 +30,37 @@ public class NetfluxBackend implements WebSocketHandler
 
     private final UserBox users = new UserBox();
 
+    /**
+     * Store/remove/get users in memory
+     */
     private static class UserBox
     {
         private Map<WebSocket, User> userBySocket = new HashMap<WebSocket, User>();
         private Map<String, User> userByName = new HashMap<>();
+
+        /**
+         * Get a User by his name
+         * @param name the user name
+         * @return
+         */
         User byName(String name) {
             return userByName.get(name);
         }
+
+        /**
+         * Get a user from a socket
+         * @param sock the WebSocket
+         * @return
+         */
         User bySocket(WebSocket sock) {
             return userBySocket.get(sock);
         }
+
+        /**
+         * Remove a user from memory
+         * @param u the User
+         * @return
+         */
         boolean removeUser(User u) {
             if(userBySocket.get(u.sock) == null && userByName.get(u.name) == null) {
                 return false;
@@ -48,6 +69,11 @@ public class NetfluxBackend implements WebSocketHandler
             if(userByName.remove(u.name) == null) { throw new RuntimeException("userByName does not contain user"); }
             return true;
         }
+
+        /**
+         * Add a user in memory
+         * @param u the User
+         */
         void addUser(User u) {
             userBySocket.put(u.sock, u);
             userByName.put(u.name, u);
@@ -81,6 +107,10 @@ public class NetfluxBackend implements WebSocketHandler
         }
     }
 
+    /**
+     * Handler called when a socket is closed/disconnected
+     * @param ws the WebSocket
+     */
     private void wsDisconnect(WebSocket ws)
     {
         synchronized (bigLock) {
@@ -126,10 +156,22 @@ public class NetfluxBackend implements WebSocketHandler
         }
     }
 
+    /**
+     * Add a message to the sending queue of a User
+     * @param toUser the User
+     * @param msgStr the string message
+     */
     private void sendMessage(User toUser, String msgStr) {
         toUser.toBeSent.add(msgStr);
     }
 
+    /**
+     * Broadcast a message to a channel
+     * @param cmd the message type/command
+     * @param me the sender
+     * @param chan the channel where the message is sent
+     * @param msgStr the message
+     */
     private void sendChannelMessage(String cmd, User me, Channel chan, String msgStr) {
         for (User u : chan.users.values()) {
             //System.out.println("Sending to " + clientName + "  " + msgStr);
@@ -143,6 +185,10 @@ public class NetfluxBackend implements WebSocketHandler
         }
     }
 
+    /*
+     * The following function are used to build the different types of messages sent by the server :
+     * ACK, JACK (Join-ACK), JOIN, LEAVE, MSG, ERROR
+     */
     private ArrayList<Object> buildAck (Integer seq) {
         ArrayList<Object> msg = new ArrayList<>();
         msg.add(seq);
@@ -185,12 +231,15 @@ public class NetfluxBackend implements WebSocketHandler
         return msg;
     }
 
+    /**
+     * Handler called when a message is received by the server from a socket
+     * @param ws the socket from which the message is received
+     */
     private void onMessage(WebSocket ws) {
         ArrayList<Object> msg;
         try {
             msg = mapper.readValue(ws.recv(), ArrayList.class);
         } catch (IOException e) {
-            msg = null;
             throw new RuntimeException("Failed to parse message", e);
         }
         if (msg == null) { return; }
@@ -219,6 +268,12 @@ public class NetfluxBackend implements WebSocketHandler
         String cmd = msg.get(1).toString();
         String obj = (msg.get(2) != null) ? msg.get(2).toString() : null;
 
+        /*
+         * JOIN request:
+         * - Send a JACK
+         * - Join or create the channel
+         * - Send a JOIN message to the selected channel
+         */
         if(cmd.equals("JOIN")) {
             if (obj != null && obj.length() == 0) {
                 ArrayList<Object> errorMsg = buildError(seq, "ENOENT", "");
@@ -248,6 +303,13 @@ public class NetfluxBackend implements WebSocketHandler
             sendChannelMessage("JOIN", user, chan, display(joinMsg));
             return;
         }
+        /*
+         * LEAVE request:
+         * - Check if the request is correct
+         * - Send an ACK
+         * - Leave the channel
+         * - Send a LEAVE message to the selected channel
+         */
         if(cmd.equals("LEAVE")) {
             ArrayList<Object> errorMsg = null;
             if (obj == null || obj.length() == 0)
@@ -268,10 +330,21 @@ public class NetfluxBackend implements WebSocketHandler
             chan.users.remove(user.name);
             user.chans.remove(chan);
         }
+        /*
+         * PING:
+         * - Send an ACK
+         */
         if(cmd.equals("PING")) {
             ArrayList<Object> ackMsg = buildAck(seq);
             sendMessage(user, display(ackMsg));
         }
+        /*
+         * MSG (patch):
+         * - Send an ACK
+         * - Check if the history of the channel is requested
+         *    - Yes : send the history
+         *    - No : transfer the message to the recipient
+         */
         if(cmd.equals("MSG")) {
             ArrayList<Object> ackMsg = buildAck(seq);
             sendMessage(user, display(ackMsg));
@@ -322,7 +395,7 @@ public class NetfluxBackend implements WebSocketHandler
         User user;
         List<String> messages;
     }
-    
+
     private SendJob getSendJob()
     {
         synchronized (bigLock) {
