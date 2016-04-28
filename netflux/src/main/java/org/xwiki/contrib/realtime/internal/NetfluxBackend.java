@@ -1,16 +1,13 @@
 package org.xwiki.contrib.realtime.internal;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.websocket.WebSocket;
 import org.xwiki.contrib.websocket.WebSocketHandler;
-import org.xwiki.model.reference.DocumentReference;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import javax.inject.Named;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 //import java.util.
 
@@ -97,7 +94,7 @@ public class NetfluxBackend implements WebSocketHandler
         final Queue<String> toBeSent = new LinkedList<>();
         final Set<Channel> chans = new HashSet<Channel>();
         boolean connected;
-        long timeOfLastMessage;
+        long timeOfLastMessage = System.currentTimeMillis();
 
         User(WebSocket ws, String name)
         {
@@ -325,10 +322,10 @@ public class NetfluxBackend implements WebSocketHandler
             ArrayList<Object> ackMsg = buildAck(seq);
             sendMessage(user, display(ackMsg));
             Channel chan = channelByName.get(obj);
-            ArrayList<Object> leaveMsg = buildDefault(user.name, "LEAVE", obj, "");
-            sendChannelMessage("LEAVE", user, chan, display(leaveMsg));
             chan.users.remove(user.name);
             user.chans.remove(chan);
+            ArrayList<Object> leaveMsg = buildDefault(user.name, "LEAVE", obj, "");
+            sendChannelMessage("LEAVE", user, chan, display(leaveMsg));
         }
         /*
          * PING:
@@ -422,16 +419,15 @@ public class NetfluxBackend implements WebSocketHandler
                 String userName = getRandomHexString(32);
                 user = new User(sock, userName);
                 users.addUser(user);
-                user.timeOfLastMessage = System.currentTimeMillis();
                 //System.out.println("Registered " + userName);
-                sock.onDisconnect(new WebSocket.Callback() {
-                    public void call(WebSocket ws) {
+            }
+            sock.onDisconnect(new WebSocket.Callback() {
+                public void call(WebSocket ws) {
                     synchronized(bigLock) {
                         wsDisconnect(ws);
                     }
-                    }
-                });
-            }
+                }
+            });
 
             ArrayList<Object> identMsg = buildDefault("", "IDENT", user.name, null);
             String identMsgStr = display(identMsg);
