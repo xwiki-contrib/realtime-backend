@@ -1,1 +1,2 @@
 org.xwiki.contrib.realtime.internal.NetfluxBackend
+org.xwiki.contrib.realtime.script.NetfluxBackendScriptService

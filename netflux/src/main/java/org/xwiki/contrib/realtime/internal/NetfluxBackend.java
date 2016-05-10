@@ -6,26 +6,27 @@ import org.xwiki.contrib.websocket.WebSocketHandler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import javax.inject.Named;
+import javax.inject.Singleton;
 import java.io.IOException;
 import java.util.*;
 
 //import java.util.
 
 @Component
+@Singleton
 @Named("realtimeNetflux")
 public class NetfluxBackend implements WebSocketHandler
 {
     private static final long TIMEOUT_MILLISECONDS = 30000;
-    private static final boolean USE_HISTORY_KEEPER = true;
+    public static final boolean USE_HISTORY_KEEPER = true;
 
     private final ObjectMapper mapper = new ObjectMapper();
-
-    private final Map<String, Channel> channelByName = new HashMap<String, Channel>();
 
     private final String historyKeeper = getRandomHexString((16));
     private final Object bigLock = new Object();
 
     private final UserBox users = new UserBox();
+    public final ChannelBox channels = new ChannelBox();
 
     /**
      * Store/remove/get users in memory
@@ -77,13 +78,69 @@ public class NetfluxBackend implements WebSocketHandler
         }
     }
 
-    private static class Channel
+    /**
+     * Store/remove/get channels in memory
+     */
+    public static class ChannelBox
     {
-        final Map<String, User> users = new HashMap<String, User>();
+        private Map<String, String> keyByName = new HashMap<String, String>();
+        private Map<String, Channel> channelByKey = new HashMap<String, Channel>();
+
+        /**
+         * Get a Channel by its name
+         * @param name the user name
+         * @return
+         */
+        public String getKeyByName(String name) {
+            return keyByName.get(name);
+        }
+
+        /**
+         * Get a Channel from its key
+         * @param key the WebSocket
+         * @return
+         */
+        public Channel byKey(String key) {
+            return channelByKey.get(key);
+        }
+
+        /**
+         * Remove a Channel from memory
+         * @param c the Channel
+         * @return
+         */
+        boolean removeChannel(Channel c) {
+            if(channelByKey.get(c.key) == null && keyByName.get(c.name) == null) {
+                return false;
+            }
+            if(channelByKey.remove(c.key) == null) {
+                throw new RuntimeException("channelByKey does not contain that channel");
+            }
+            if(keyByName.remove(c.name) == null) {
+                throw new RuntimeException("keyByName does not contain that channel");
+            }
+            return true;
+        }
+
+        /**
+         * Add a Channel in memory
+         * @param c the Channel
+         */
+        void addChannel(Channel c) {
+            channelByKey.put(c.key, c);
+            keyByName.put(c.name, c.key);
+        }
+    }
+
+    public static class Channel
+    {
+        public final Map<String, User> users = new HashMap<String, User>();
         final List<String> messages = new LinkedList<String>();
         final String name;
+        public final String key;
         Channel(String name) {
             this.name = name;
+            this.key = getRandomHexString(48);
         }
     }
 
@@ -105,6 +162,21 @@ public class NetfluxBackend implements WebSocketHandler
     }
 
     /**
+     * Create a channel based on a "name" String. A random key will be generated for that channel.
+     * If the name is empty, a 32 chars "cryptpad" key will be generated.
+     * @param name the document name associated to the channel
+     * @return
+     */
+    public Channel createChannel(String name) {
+        Channel chan = new Channel(name);
+        if(USE_HISTORY_KEEPER) {
+            chan.users.put(historyKeeper, null);
+        }
+        channels.addChannel(chan);
+        return chan;
+    }
+
+    /**
      * Handler called when a socket is closed/disconnected
      * @param ws the WebSocket
      */
@@ -122,26 +194,25 @@ public class NetfluxBackend implements WebSocketHandler
 
             for (Channel chan : user.chans) {
                 chan.users.remove(user.name);
-                List<Object> leaveMsg = buildDefault(user.name, "LEAVE", chan.name, "Quit: [ wsDisconnect() ]");
+                List<Object> leaveMsg = buildDefault(user.name, "LEAVE", chan.key, "Quit: [ wsDisconnect() ]");
                 String msgStr = display(leaveMsg);
                 sendChannelMessage("LEAVE", user, chan, msgStr);
                 chan.messages.add(msgStr);
                 // Remove the channel when there is no user anymore (the history keeper doesn't count)
                 Integer minSize = (USE_HISTORY_KEEPER) ? 1 : 0;
                 if (chan.users.keySet().size() == minSize) {
-                    channelByName.remove(chan.name);
+                    channels.removeChannel(chan);
                 }
             }
         }
     }
 
-    private String getRandomHexString(int numchars){
+    private static String getRandomHexString(int numchars){
         Random r = new Random();
         StringBuffer sb = new StringBuffer();
         while(sb.length() < numchars){
             sb.append(Integer.toHexString(r.nextInt()));
         }
-
         return sb.toString().substring(0, numchars);
     }
 
@@ -261,6 +332,8 @@ public class NetfluxBackend implements WebSocketHandler
             }
         }
 
+        // We have to clean unused channel
+
         Integer seq = (Integer) msg.get(0);
         String cmd = msg.get(1).toString();
         String obj = (msg.get(2) != null) ? msg.get(2).toString() : null;
@@ -272,23 +345,25 @@ public class NetfluxBackend implements WebSocketHandler
          * - Send a JOIN message to the selected channel
          */
         if(cmd.equals("JOIN")) {
-            if (obj != null && obj.length() == 0) {
+            // Length == 32  ==>  Cryptpad key
+            // Length == 48  ==>  RTFrontend key
+            if (obj != null && obj.length() != 0 && obj.length() != 32 && obj.length() != 48) {
+                ArrayList<Object> errorMsg = buildError(seq, "EINVAL", "");
+                sendMessage(user, display(errorMsg));
+                return;
+            }
+            Channel chan = (obj == null) ? null : channels.byKey(obj);
+            // No key provided : create a new channel
+            if (chan == null && (obj == null || obj.length() == 0)) {
+                obj = getRandomHexString(32);
+                chan = createChannel(obj);
+            }
+            else if(chan == null) {
                 ArrayList<Object> errorMsg = buildError(seq, "ENOENT", "");
                 sendMessage(user, display(errorMsg));
                 return;
             }
-            else if (obj == null) {
-                obj = getRandomHexString(32);
-            }
-            Channel chan = channelByName.get(obj);
-            if (chan == null) {
-                if(USE_HISTORY_KEEPER) {
-                    chan = new Channel(obj);
-                    chan.users.put(historyKeeper, null);
-                }
-                channelByName.put(obj, chan);
-            }
-            ArrayList<Object> jackMsg = buildJack(seq, chan.name);
+            ArrayList<Object> jackMsg = buildJack(seq, chan.key);
             sendMessage(user, display(jackMsg));
             user.chans.add(chan);
             for(String userId : chan.users.keySet()) {
@@ -311,9 +386,9 @@ public class NetfluxBackend implements WebSocketHandler
             ArrayList<Object> errorMsg = null;
             if (obj == null || obj.length() == 0)
                 errorMsg = buildError(seq, "EINVAL", "undefined");
-            if (errorMsg != null && channelByName.get(obj) == null)
+            if (errorMsg != null && channels.byKey(obj) == null)
                 errorMsg = buildError(seq, "ENOENT", obj);
-            if (errorMsg != null && !channelByName.get(obj).users.containsKey(user.name))
+            if (errorMsg != null && !channels.byKey(obj).users.containsKey(user.name))
                 errorMsg = buildError(seq, "NOT_IN_CHAN", obj);
             if (errorMsg != null) {
                 sendMessage(user, display(errorMsg));
@@ -321,7 +396,7 @@ public class NetfluxBackend implements WebSocketHandler
             }
             ArrayList<Object> ackMsg = buildAck(seq);
             sendMessage(user, display(ackMsg));
-            Channel chan = channelByName.get(obj);
+            Channel chan = channels.byKey(obj);
             chan.users.remove(user.name);
             user.chans.remove(chan);
             ArrayList<Object> leaveMsg = buildDefault(user.name, "LEAVE", obj, "");
@@ -356,7 +431,7 @@ public class NetfluxBackend implements WebSocketHandler
                 String text = (msgHistory == null) ? "" : msgHistory.get(0);
                 if(text.equals("GET_HISTORY")) {
                     String chanName = msgHistory.get(1);
-                    Channel chan = channelByName.get(chanName);
+                    Channel chan = channels.byKey(chanName);
                     if(chan != null && chan.messages != null && chan.messages.size() > 0) {
                         Integer i = 0;
                         for (String msgStr : chan.messages) {
@@ -369,14 +444,14 @@ public class NetfluxBackend implements WebSocketHandler
                 }
                 return;
             }
-            if (obj.length() != 0 && channelByName.get(obj) == null && users.byName(obj) == null) {
+            if (obj.length() != 0 && channels.byKey(obj) == null && users.byName(obj) == null) {
                 ArrayList<Object> errorMsg = buildError(seq, "ENOENT", obj);
                 sendMessage(user, display(errorMsg));
                 return;
             }
-            if (channelByName.get(obj) != null) {
+            if (channels.byKey(obj) != null) {
                 ArrayList<Object> msgMsg = buildMessage(0, user.name, obj, msg.get(3));
-                Channel chan = channelByName.get(obj);
+                Channel chan = channels.byKey(obj);
                 sendChannelMessage("MSG", user, chan, display(msgMsg));
                 return;
             }
