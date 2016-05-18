@@ -60,9 +60,9 @@ public class NetfluxBackendScriptService implements ScriptService
 
     /**
      * Get the channel key for a document and create the channel if it doesn't exist.
-     * @param docRef the document reference
-     * @param language the document language
-     * @param type the type of channel
+     * @param docRef the DocumentReference of the edited page
+     * @param language the document language ("default", "en", "fr", etc.)
+     * @param type the editor type ("rtwiki", "rtwysiwyg" or "events")
      * @return
      */
     public Map<String,Object> getChannelKey(DocumentReference docRef, String language, String type, Boolean createIfNull)
