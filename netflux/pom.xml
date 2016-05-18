@@ -25,9 +25,9 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-   <groupId>org.xwiki.commons</groupId>
-   <artifactId>xwiki-commons-pom</artifactId>
-   <version>7.1.2</version> <!-- see xwiki.version -->
+    <groupId>org.xwiki.commons</groupId>
+    <artifactId>xwiki-commons-pom</artifactId>
+    <version>7.1.2</version> <!-- see xwiki.version -->
   </parent>
   <groupId>org.xwiki.contrib</groupId>
   <version>1.0-SNAPSHOT</version>
@@ -39,7 +39,7 @@ You probably don't want to install this directly</description>
   <scm>
     <connection>scm:git:git://github.com/xwiki-contrib/realtime-backend.git</connection>
     <developerConnection>scm:git:git@github.com:xwiki-contrib/realtime-backend.git</developerConnection>
-    <url>https://github.com/xwiki-contrib/realtime-backend/netflux</url>
+    <url>https://github.com/xwiki-contrib/realtime-backend/tree/master/netflux</url>
     <tag>HEAD</tag>
   </scm>
   <distributionManagement>
