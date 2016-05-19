@@ -146,11 +146,12 @@ public class NetfluxBackend implements WebSocketHandler
         public Map<String, Object> getKeysFromDocName(String name) {
             Map<String, Object> keyByType = new HashMap<>();
             List<Channel> chans = new ArrayList<>(channelByKey.values());
+            Integer removeUsers = USE_HISTORY_KEEPER ? 1 : 0;
             for(Channel channel : chans) {
                 if (channel.name.equals(name)) {
                     Map<String, Object> chanMap = new HashMap<>();
-                    chanMap.put("keys", channel.key);
-                    chanMap.put("users", channel.users.size());
+                    chanMap.put("key", channel.key);
+                    chanMap.put("users", channel.users.size()-removeUsers);
                     keyByType.put(channel.type, chanMap);
                 }
             }

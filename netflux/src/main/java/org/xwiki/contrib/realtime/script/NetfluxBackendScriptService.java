@@ -62,12 +62,11 @@ public class NetfluxBackendScriptService implements ScriptService
      * Get the channel keys for a document and create channels if they don't exist.
      * @param docRef the DocumentReference of the edited page
      * @param modifier the unique modifier/language ("default", "en", "fr", etc.)
-     * @param editorsToCreate the editor types ("rtwiki", "rtwysiwyg", "events", etc.)
+     * @param editor the editor type ("rtwiki", "rtwysiwyg", "events", etc.)
      */
-    public Map<String,Object> getChannelKeys(DocumentReference docRef,
+    public Map<String,Object> getChannelKey(DocumentReference docRef,
                                             String modifier,
-                                            List<String> editorsToCreate,
-                                            Boolean multipleChannels)
+                                            String editor)
     {
         Map<String,Object> result = new HashMap<>();
         Map<String,Object> keyResult = new HashMap<>();
@@ -86,19 +85,13 @@ public class NetfluxBackendScriptService implements ScriptService
         String docIdString = channelDocId.toString();
         keyResult = nfBackend.channels.getKeysFromDocName(docIdString);
 
-        // Check if we are allowed to create multiple channels for that document
-        if (multipleChannels || keyResult.size() == 0 || (keyResult.size() == 1 && keyResult.containsKey("events"))) {
-            // Create keys for requested editor types
-            for (String editor : editorsToCreate) {
-                // Check if the channel doesn't already exist
-                if (!keyResult.containsKey(editor)) {
-                    NetfluxBackend.Channel channel = nfBackend.createChannel(docIdString, editor);
-                    Map<String, Object> chanMap = new HashMap<>();
-                    chanMap.put("keys", channel.key);
-                    chanMap.put("users", channel.users.size());
-                    keyResult.put(editor, chanMap);
-                }
-            }
+        // Check if the "editor" channel doesn't already exist
+        if (editor != null && editor.trim().length() > 0 && !keyResult.containsKey(editor)) {
+            String key = nfBackend.createChannel(docIdString, editor).key;
+            Map<String, Object> chanMap = new HashMap<>();
+            chanMap.put("key", key);
+            chanMap.put("users", 0);
+            keyResult.put(editor, chanMap);
         }
 
         result.put("keys", keyResult);
