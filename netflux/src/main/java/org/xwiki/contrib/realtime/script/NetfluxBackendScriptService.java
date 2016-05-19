@@ -59,42 +59,49 @@ public class NetfluxBackendScriptService implements ScriptService
     }
 
     /**
-     * Get the channel key for a document and create the channel if it doesn't exist.
+     * Get the channel keys for a document and create channels if they don't exist.
      * @param docRef the DocumentReference of the edited page
-     * @param language the document language ("default", "en", "fr", etc.)
-     * @param type the editor type ("rtwiki", "rtwysiwyg" or "events")
-     * @return
+     * @param modifier the unique modifier/language ("default", "en", "fr", etc.)
+     * @param editorsToCreate the editor types ("rtwiki", "rtwysiwyg", "events", etc.)
      */
-    public Map<String,Object> getChannelKey(DocumentReference docRef, String language, String type, Boolean createIfNull)
+    public Map<String,Object> getChannelKeys(DocumentReference docRef,
+                                            String modifier,
+                                            List<String> editorsToCreate,
+                                            Boolean multipleChannels)
     {
         Map<String,Object> result = new HashMap<>();
+        Map<String,Object> keyResult = new HashMap<>();
+
         if (!this.authMgr.hasAccess(Right.EDIT, getUser(), docRef)) {
-            result.put("error", "EPERM");
-            return result;
+            keyResult.put("error", "EPERM");
+            return keyResult;
         }
-        List<String> stringList = Arrays.asList(docRef.toString(), language, type);
-        String channelName = stringList.toString();
         NetfluxBackend nfBackend = (NetfluxBackend) backend;
-        String key = nfBackend.channels.getKeyByName(channelName);
-        // Check if the channel exists, and create it if requested
-        if(key == null && createIfNull) {
-            key = nfBackend.createChannel(channelName).key;
-        }
-        Integer users = 0;
-        // Compute the number of users in the channel if it exists
-        if(key != null) {
-            try {
-                // Get the size of the userlist and remove 1 if the history keeper is used.
-                users = nfBackend.channels.byKey(key).users.size();
-                if(nfBackend.USE_HISTORY_KEEPER) {
-                    users--;
+
+        // Clean empty channels
+        nfBackend.channels.cleanEmpty();
+
+        // Find all existing editor types
+        List<String> channelDocId = Arrays.asList(docRef.toString(), modifier);
+        String docIdString = channelDocId.toString();
+        keyResult = nfBackend.channels.getKeysFromDocName(docIdString);
+
+        // Check if we are allowed to create multiple channels for that document
+        if (multipleChannels || keyResult.size() == 0 || (keyResult.size() == 1 && keyResult.containsKey("events"))) {
+            // Create keys for requested editor types
+            for (String editor : editorsToCreate) {
+                // Check if the channel doesn't already exist
+                if (!keyResult.containsKey(editor)) {
+                    NetfluxBackend.Channel channel = nfBackend.createChannel(docIdString, editor);
+                    Map<String, Object> chanMap = new HashMap<>();
+                    chanMap.put("keys", channel.key);
+                    chanMap.put("users", channel.users.size());
+                    keyResult.put(editor, chanMap);
                 }
-            } catch (Exception e) {
-                users = -1;
             }
         }
-        result.put("key", key);
-        result.put("users", users);
+
+        result.put("keys", keyResult);
         return result;
     }
 }

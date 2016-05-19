@@ -91,8 +91,8 @@ public class NetfluxBackend implements WebSocketHandler
          * @param name the user name
          * @return
          */
-        public String getKeyByName(String name) {
-            return keyByName.get(name);
+        public String getKeyByName(String name, String type) {
+            return keyByName.get(name+"-"+type);
         }
 
         /**
@@ -110,13 +110,13 @@ public class NetfluxBackend implements WebSocketHandler
          * @return
          */
         boolean removeChannel(Channel c) {
-            if(channelByKey.get(c.key) == null && keyByName.get(c.name) == null) {
+            if(channelByKey.get(c.key) == null && keyByName.get(c.name+"-"+c.type) == null) {
                 return false;
             }
             if(channelByKey.remove(c.key) == null) {
                 throw new RuntimeException("channelByKey does not contain that channel");
             }
-            if(keyByName.remove(c.name) == null) {
+            if(keyByName.remove(c.name+"-"+c.type) == null) {
                 throw new RuntimeException("keyByName does not contain that channel");
             }
             return true;
@@ -128,7 +128,33 @@ public class NetfluxBackend implements WebSocketHandler
          */
         void addChannel(Channel c) {
             channelByKey.put(c.key, c);
-            keyByName.put(c.name, c.key);
+            keyByName.put(c.name+"-"+c.type, c.key);
+        }
+
+        public void cleanEmpty() {
+            long currentTime = System.currentTimeMillis();
+            List<Channel> chans = new ArrayList<>(channelByKey.values());
+            for(Channel channel : chans) {
+                Integer empty = USE_HISTORY_KEEPER ? 1 : 0;
+                if (channel.users.keySet().size() == empty
+                        && (currentTime - channel.createdTime) > (1000*60*60*2)) {
+                    removeChannel(channel);
+                }
+            }
+        }
+
+        public Map<String, Object> getKeysFromDocName(String name) {
+            Map<String, Object> keyByType = new HashMap<>();
+            List<Channel> chans = new ArrayList<>(channelByKey.values());
+            for(Channel channel : chans) {
+                if (channel.name.equals(name)) {
+                    Map<String, Object> chanMap = new HashMap<>();
+                    chanMap.put("keys", channel.key);
+                    chanMap.put("users", channel.users.size());
+                    keyByType.put(channel.type, chanMap);
+                }
+            }
+            return keyByType;
         }
     }
 
@@ -136,9 +162,12 @@ public class NetfluxBackend implements WebSocketHandler
     {
         public final Map<String, User> users = new HashMap<String, User>();
         final List<String> messages = new LinkedList<String>();
-        final String name;
+        final String type;
+        public final String name;
+        public final long createdTime = System.currentTimeMillis();
         public final String key;
-        Channel(String name) {
+        Channel(String name, String type) {
+            this.type = type;
             this.name = name;
             this.key = getRandomHexString(48);
         }
@@ -164,11 +193,12 @@ public class NetfluxBackend implements WebSocketHandler
     /**
      * Create a channel based on a "name" String. A random key will be generated for that channel.
      * If the name is empty, a 32 chars "cryptpad" key will be generated.
-     * @param name the document name associated to the channel
+     * @param id the document identifier (reference and unique modifier)
+     * @param type the channel type (events, rtwiki, etc.)
      * @return
      */
-    public Channel createChannel(String name) {
-        Channel chan = new Channel(name);
+    public Channel createChannel(String id, String type) {
+        Channel chan = new Channel(id, type);
         if(USE_HISTORY_KEEPER) {
             chan.users.put(historyKeeper, null);
         }
@@ -356,7 +386,7 @@ public class NetfluxBackend implements WebSocketHandler
             // No key provided : create a new channel
             if (chan == null && (obj == null || obj.length() == 0)) {
                 obj = getRandomHexString(32);
-                chan = createChannel(obj);
+                chan = createChannel(obj, null);
             }
             else if(chan == null) {
                 ArrayList<Object> errorMsg = buildError(seq, "ENOENT", "");
@@ -371,6 +401,7 @@ public class NetfluxBackend implements WebSocketHandler
                 sendMessage(user, display(inChannelMsg));
             }
             chan.users.put(user.name, user);
+            channels.cleanEmpty();
             ArrayList<Object> joinMsg = buildDefault(user.name, "JOIN", obj, null);
             sendChannelMessage("JOIN", user, chan, display(joinMsg));
             return;
