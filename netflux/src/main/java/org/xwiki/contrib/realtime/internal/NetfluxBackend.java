@@ -162,7 +162,7 @@ public class NetfluxBackend implements WebSocketHandler
     public static class Channel
     {
         public final Map<String, User> users = new HashMap<String, User>();
-        final List<String> messages = new LinkedList<String>();
+        LinkedList<String> messages = new LinkedList<String>();
         final String type;
         public final String name;
         public final long createdTime = System.currentTimeMillis();
@@ -228,7 +228,6 @@ public class NetfluxBackend implements WebSocketHandler
                 List<Object> leaveMsg = buildDefault(user.name, "LEAVE", chan.key, "Quit: [ wsDisconnect() ]");
                 String msgStr = display(leaveMsg);
                 sendChannelMessage("LEAVE", user, chan, msgStr);
-                chan.messages.add(msgStr);
                 // Remove the channel when there is no user anymore (the history keeper doesn't count)
                 Integer minSize = (USE_HISTORY_KEEPER) ? 1 : 0;
                 if (chan.users.keySet().size() == minSize) {
@@ -264,6 +263,16 @@ public class NetfluxBackend implements WebSocketHandler
         toUser.toBeSent.add(msgStr);
     }
 
+    private boolean isCheckpoint(String msgStr)
+    {
+        try {
+            ArrayList<Object> msg = mapper.readValue(msgStr, ArrayList.class);
+            return ((String) msg.get(msg.size() - 1)).indexOf("cp|[4,[") == 0;
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to parse message", e);
+        }
+    }
+
     /**
      * Broadcast a message to a channel
      * @param cmd the message type/command
@@ -278,8 +287,19 @@ public class NetfluxBackend implements WebSocketHandler
                 sendMessage(u, msgStr);
             }
         }
-        if(USE_HISTORY_KEEPER && cmd == "MSG") {
+        if(USE_HISTORY_KEEPER && (cmd == "MSG" || cmd == "LEAVE")) {
             //System.out.println("Added in history : "+msgStr);
+            if (cmd == "MSG" && isCheckpoint(msgStr)) {
+                // Prune old messages from memory
+                //System.out.println("Truncating chain");
+                LinkedList<String> msgsNext = new LinkedList<String>();
+                for (Iterator<String> it = chan.messages.descendingIterator(); it.hasNext();) {
+                    String msg = it.next();
+                    msgsNext.addFirst(msg);
+                    if (isCheckpoint(msg)) { break; }
+                }
+                chan.messages = msgsNext;
+            }
             chan.messages.add(msgStr);
         }
     }
@@ -464,11 +484,9 @@ public class NetfluxBackend implements WebSocketHandler
                 if(text.equals("GET_HISTORY")) {
                     String chanName = msgHistory.get(1);
                     Channel chan = channels.byKey(chanName);
-                    if(chan != null && chan.messages != null && chan.messages.size() > 0) {
-                        Integer i = 0;
+                    if(chan != null && chan.messages != null) {
                         for (String msgStr : chan.messages) {
                             sendMessage(user, msgStr);
-                            i++;
                         }
                     }
                     ArrayList<Object> msgEndHistory = buildMessage(0, historyKeeper, user.name, 0);
@@ -494,7 +512,7 @@ public class NetfluxBackend implements WebSocketHandler
             }
         }
     }
-    
+
     private static class SendJob {
         User user;
         List<String> messages;
