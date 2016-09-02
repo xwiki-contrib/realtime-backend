@@ -489,7 +489,8 @@ public class NetfluxBackend implements WebSocketHandler
                             sendMessage(user, msgStr);
                         }
                     }
-                    ArrayList<Object> msgEndHistory = buildMessage(0, historyKeeper, user.name, 0);
+                    String endHistoryMsg = "{\"state\":1, \"channel\":\""+chanName+"\"}";
+                    ArrayList<Object> msgEndHistory = buildMessage(0, historyKeeper, user.name, endHistoryMsg);
                     sendMessage(user, display(msgEndHistory));
                 }
                 return;
