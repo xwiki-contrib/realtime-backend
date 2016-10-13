@@ -59,6 +59,7 @@
   </developers>
 
   <properties>
+    <xwiki.extension.namespaces>{root}</xwiki.extension.namespaces>
     <xwiki.version>7.1.2</xwiki.version> <!-- see parent version -->
   </properties>
 
