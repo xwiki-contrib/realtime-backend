@@ -387,7 +387,10 @@ public class NetfluxBackend implements WebSocketHandler
 
         Integer seq = (Integer) msg.get(0);
         String cmd = msg.get(1).toString();
-        String obj = (msg.get(2) != null) ? msg.get(2).toString() : null;
+        String obj = "";
+        if (msg.size() >= 3) {
+            obj = (msg.get(2) != null) ? msg.get(2).toString() : null;
+        }
 
         /*
          * JOIN request:
