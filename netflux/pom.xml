@@ -30,7 +30,7 @@
     <version>7.1.2</version> <!-- see xwiki.version -->
   </parent>
   <groupId>org.xwiki.contrib</groupId>
-  <version>1.4</version>
+  <version>1.5-SNAPSHOT</version>
   <artifactId>xwiki-contrib-netflux</artifactId>
   <name>Realtime Netflux Backend</name>
   <description>Backend support for Realtime Applications using the Netflux API.</description>
@@ -38,7 +38,7 @@
     <connection>scm:git:git://github.com/xwiki-contrib/realtime-backend.git</connection>
     <developerConnection>scm:git:git@github.com:xwiki-contrib/realtime-backend.git</developerConnection>
     <url>https://github.com/xwiki-contrib/realtime-backend/tree/master/netflux</url>
-    <tag>xwiki-contrib-netflux-1.4</tag>
+    <tag>HEAD</tag>
   </scm>
   <distributionManagement>
     <repository>
