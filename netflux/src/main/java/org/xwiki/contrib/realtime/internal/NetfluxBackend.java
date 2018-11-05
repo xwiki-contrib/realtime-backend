@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import javax.inject.Named;
 import javax.inject.Singleton;
 import java.io.IOException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.*;
 
 //import java.util.
@@ -83,8 +84,8 @@ public class NetfluxBackend implements WebSocketHandler
      */
     public static class ChannelBox
     {
-        private Map<String, String> keyByName = new HashMap<String, String>();
-        private Map<String, Channel> channelByKey = new HashMap<String, Channel>();
+        private Map<String, String> keyByName = new ConcurrentHashMap<String, String>();
+        private Map<String, Channel> channelByKey = new ConcurrentHashMap<String, Channel>();
 
         /**
          * Get a Channel by its name
@@ -132,14 +133,18 @@ public class NetfluxBackend implements WebSocketHandler
         }
 
         public void cleanEmpty() {
-            long currentTime = System.currentTimeMillis();
-            List<Channel> chans = new ArrayList<>(channelByKey.values());
-            for(Channel channel : chans) {
-                Integer empty = USE_HISTORY_KEEPER ? 1 : 0;
-                if (channel.users.keySet().size() == empty
-                        && (currentTime - channel.createdTime) > (1000*60*60*2)) {
-                    removeChannel(channel);
+            try {
+                long currentTime = System.currentTimeMillis();
+                List<Channel> chans = new ArrayList<>(channelByKey.values());
+                for(Channel channel : chans) {
+                    Integer empty = USE_HISTORY_KEEPER ? 1 : 0;
+                    if (channel.users.keySet().size() == empty
+                            && (currentTime - channel.createdTime) > (1000*60*60*2)) {
+                        removeChannel(channel);
+                    }
                 }
+            } catch (Exception e) {
+                // Keep going if cleanEmpty fails...
             }
         }
 
