@@ -29,7 +29,7 @@
   </parent>
   <artifactId>xwiki-contrib-netflux</artifactId>
   <version>1.6-SNAPSHOT</version>
-  <name>Realtime Netflux Backend</name>
+  <name>[Deprecated] Realtime Netflux Backend</name>
   <description>Backend support for Realtime Applications using the Netflux API.</description>
   <scm>
     <connection>scm:git:git://github.com/xwiki-contrib/realtime-backend.git</connection>
@@ -55,7 +55,7 @@
     <dependency>
       <groupId>org.xwiki.contrib</groupId>
       <artifactId>xwiki-contrib-websocket</artifactId>
-      <version>1.9-SNAPSHOT</version>
+      <version>1.9</version>
     </dependency>
     <dependency>
       <groupId>org.xwiki.commons</groupId>
