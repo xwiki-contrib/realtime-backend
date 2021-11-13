@@ -28,14 +28,14 @@
     <version>11.10</version>
   </parent>
   <artifactId>xwiki-contrib-netflux</artifactId>
-  <version>1.6</version>
+  <version>1.7-SNAPSHOT</version>
   <name>[Deprecated] Realtime Netflux Backend</name>
   <description>Backend support for Realtime Applications using the Netflux API.</description>
   <scm>
     <connection>scm:git:git://github.com/xwiki-contrib/realtime-backend.git</connection>
     <developerConnection>scm:git:git@github.com:xwiki-contrib/realtime-backend.git</developerConnection>
     <url>https://github.com/xwiki-contrib/realtime-backend/tree/master/netflux</url>
-    <tag>xwiki-contrib-netflux-1.6</tag>
+    <tag>HEAD</tag>
   </scm>
   <developers>
     <developer>
