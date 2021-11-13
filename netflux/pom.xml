@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
- *
  * See the NOTICE file distributed with this work for additional
  * information regarding copyright ownership.
  *
@@ -19,19 +18,17 @@
  * License along with this software; if not, write to the Free
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
- *
 -->
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>org.xwiki.commons</groupId>
-    <artifactId>xwiki-commons-pom</artifactId>
-    <version>7.1.2</version> <!-- see xwiki.version -->
+    <groupId>org.xwiki.contrib</groupId>
+    <artifactId>parent-platform</artifactId>
+    <version>11.10</version>
   </parent>
-  <groupId>org.xwiki.contrib</groupId>
-  <version>1.6-SNAPSHOT</version>
   <artifactId>xwiki-contrib-netflux</artifactId>
+  <version>1.6-SNAPSHOT</version>
   <name>Realtime Netflux Backend</name>
   <description>Backend support for Realtime Applications using the Netflux API.</description>
   <scm>
@@ -40,13 +37,6 @@
     <url>https://github.com/xwiki-contrib/realtime-backend/tree/master/netflux</url>
     <tag>HEAD</tag>
   </scm>
-  <distributionManagement>
-    <repository>
-      <id>xwiki-staging</id>
-      <name>XWiki Staging Repository</name>
-      <url>http://nexus.xwiki.org/nexus/service/local/staging/deploy/maven2/</url>
-    </repository>
-  </distributionManagement>
   <developers>
     <developer>
       <id>yflory</id>
@@ -57,62 +47,59 @@
       <name>Caleb James DeLisle</name>
     </developer>
   </developers>
-
   <properties>
     <xwiki.extension.namespaces>{root}</xwiki.extension.namespaces>
-    <xwiki.version>7.1.2</xwiki.version> <!-- see parent version -->
+    <checkstyle.suppressions.location>${basedir}/src/checkstyle/checkstyle-suppressions.xml</checkstyle.suppressions.location>
   </properties>
-
   <dependencies>
-
     <dependency>
       <groupId>org.xwiki.contrib</groupId>
       <artifactId>xwiki-contrib-websocket</artifactId>
-      <version>1.8</version>
+      <version>1.9-SNAPSHOT</version>
     </dependency>
-
-    <dependency>
-      <groupId>javax.inject</groupId>
-      <artifactId>javax.inject</artifactId>
-      <version>1</version>
-    </dependency>
-
     <dependency>
       <groupId>org.xwiki.commons</groupId>
       <artifactId>xwiki-commons-component-api</artifactId>
-      <version>${xwiki.version}</version>
-      <scope>provided</scope>
+      <version>${commons.version}</version>
     </dependency>
-
     <dependency>
       <groupId>org.xwiki.platform</groupId>
       <artifactId>xwiki-platform-model</artifactId>
-      <version>${xwiki.version}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-      <version>2.3.3</version>
-    </dependency>
-    <dependency>
-      <groupId>commons-codec</groupId>
-      <artifactId>commons-codec</artifactId>
-      <version>1.9</version>
+      <version>${platform.version}</version>
     </dependency>
     <dependency>
       <groupId>org.xwiki.platform</groupId>
       <artifactId>xwiki-platform-security-api</artifactId>
-      <version>${xwiki.version}</version>
-      <scope>provided</scope>
+      <version>${platform.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.xwiki.platform</groupId>
-      <artifactId>xwiki-platform-bridge</artifactId>
-      <version>${xwiki.version}</version>
-      <scope>provided</scope>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
     </dependency>
-
   </dependencies>
-
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.revapi</groupId>
+        <artifactId>revapi-maven-plugin</artifactId>
+        <configuration>
+          <!-- XWiki API breakages are reported separately. -->
+          <checkDependencies>false</checkDependencies>
+          <analysisConfiguration><![CDATA[
+            {
+              "revapi": {
+                "ignore" : [
+                  {
+                    "code": "java.field.removed",
+                    "old": "field org.xwiki.contrib.realtime.script.NetfluxBackendScriptService.GUEST_USER",
+                    "justification": "Should have been private."
+                  }
+                ]
+              }
+            }
+          ]]></analysisConfiguration>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>
